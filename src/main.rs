@@ -1,4 +1,4 @@
-use std::fs;
+use openssh::*;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -76,8 +76,6 @@ async fn ipc_listener(ssh_session: &Session, socket_path: &Path) {
   }
 }
 
-use openssh::*;
-
 async fn run_tmux(control_path: &Path) {
   // the openssh library doesn't do pseudo-terminal allocation:
   // https://github.com/openssh-rust/openssh/issues/87
@@ -136,7 +134,7 @@ async fn pane_in_direction(session: &Session, direction: Direction) -> bool {
     .await
     .unwrap()
     .stdout;
-  return pane_at_top == b"0\n";
+  pane_at_top == b"0\n"
 }
 
 #[tokio::main]
