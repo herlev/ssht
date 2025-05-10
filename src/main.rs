@@ -4,6 +4,8 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use tokio::io::Interest;
 use tokio::net::{UnixListener, UnixStream};
+use tokio::signal::unix::signal;
+use tokio::signal::unix::SignalKind;
 
 enum Command {
   // TODO: maybe refactor these into a single command that returns true if it moved and false otherwise
@@ -122,7 +124,7 @@ async fn pane_in_direction(session: &Session, direction: Direction) -> bool {
     .command("tmux")
     .arg("display-message")
     .arg("-p")
-    .arg(&format!(
+    .arg(format!(
       "#{{pane_at_{}}}",
       match direction {
         Direction::Up => "top",
@@ -144,14 +146,13 @@ async fn main() {
   let ssh_path = format!("ssh://{}", args[1]);
   let session = Session::connect_mux(ssh_path, KnownHosts::Strict).await.unwrap();
   let pid = std::process::id();
-  // TODO: copy kitty fix
-  // TODO: rsync config files
-  // TODO: install packages if not installed
   let socket = PathBuf::from_str(&format!("/tmp/ssht/{pid}.sock")).unwrap();
+  let mut terminate_signal = signal(SignalKind::terminate()).unwrap();
 
   tokio::select! {
     _ = ipc_listener(&session, &socket) => (),
-    _ = run_tmux(session.control_socket()) => ()
+    _ = run_tmux(session.control_socket()) => (),
+    _ = terminate_signal.recv() => (),
   }
 
   std::fs::remove_file(socket).unwrap();
